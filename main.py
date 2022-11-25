@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import Room
+from routers import Place
+from db import Base,engine
 
 app = FastAPI()
 
@@ -16,4 +17,5 @@ app.add_middleware(
 )
 
 #Include router members
-app.include_router(Room.router)
+app.include_router(Place.router)
+Base.metadata.create_all(engine)

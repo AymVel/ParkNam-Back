@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-engine = create_engine('sqlite:///C:\\sqlitedbs\\chaudiere.db?check_same_thread=False', echo=True)
-Base = declarative_base()
+engine = create_engine('sqlite:///./parking.db?check_same_thread=False', echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base.metadata.create_all(engine)
+Base = declarative_base()
