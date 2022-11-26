@@ -37,7 +37,7 @@ class Place(Base):
         data_2 = [[p.identifier,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] for p in data]
         training_data = pd.DataFrame(data=data_1,
                                         columns=["IDENTIFIER","ZONE",
-                                                 'WEEKDAY_'+str(date.weekday()), 'HOUR_'+str(date.hour)])
+                                                 'WEEKDAY_'+str(round(int(date.weekday()) / 2) * 2), 'HOUR_'+str(round(int(date.hour) / 2) * 2)])
         columns = ["IDENTIFIER",
                    'WEEKDAY_0', 'WEEKDAY_1', 'WEEKDAY_2', 'WEEKDAY_3',
                    'WEEKDAY_4', 'WEEKDAY_5', 'WEEKDAY_6', 'HOUR_0', 'HOUR_10', 'HOUR_12',
