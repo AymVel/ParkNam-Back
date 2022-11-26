@@ -27,10 +27,9 @@ def get_db():
 @router.get("/")
 async def get_place(db: Session = Depends(get_db)):
     db_place = Place.get_all_place(db)
-    l = [(place.x, place.y) for place in db_place]
     if db_place is None:
         raise HTTPException(status_code=404, detail="PLace not found")
-    return Place.toGeoJson(l)
+    return db_place
 
 
 @router.get("/generate")
@@ -43,12 +42,13 @@ async def generate(db: Session = Depends(get_db)):
         Place.create_place(db=db, idplace=None, x=float(i[2].split(',')[0]), y=float(i[2].split(',')[1]),
                            identifier=int(i[3]), zone=i[0], month=int(i[5]),
                            weekday=int(i[6]), hour=int(i[7]),
-                           minute=int(i[8]), disp=bool(i[9]),
+                           minute=int(i[8]), disp=bool(int(i[9])),
                            date=datetime.datetime.strptime(i[4], '%Y-%m-%d %H:%M:%S'))
     return "ok"
 @router.get("/predict/{date}")
 async def predict(date: str, db: Session = Depends(get_db)):
-    return Place.predict(db,datetime.datetime.strptime(date,'%Y-%m-%d_%H:%M:%S'))
+    p = Place.predict(db, datetime.datetime.strptime(date, '%Y-%m-%d_%H:%M:%S'))
+    return p
 @router.get("/train")
 async def train( db: Session = Depends(get_db)):
     Place.train(db)
@@ -56,14 +56,14 @@ async def train( db: Session = Depends(get_db)):
 @router.get("/available")
 async def available(db: Session = Depends(get_db)):
     p = Place.available(db)
-    print(p)
     l = [(place[0].x, place[0].y) for place in p if place[0].disp]
+    print(len(l))
     return Place.toGeoJson(l)
 
 @router.post("/park")
 async def take_place(x:str,y:str,stay:str, db: Session = Depends(get_db)):
     date = datetime.datetime.now()
-    p = Place.closest(float(x),float(y))
+    p = Place.closest(db,float(x),float(y))
     Place.create_place(db=db, idplace=None, x=p.x, y=p.y, identifier=p.identifier, zone=p.zone, month=date.month,
                        weekday=date.day, hour=date.hour,
                        minute=date.minute, disp=False, date = date)

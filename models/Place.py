@@ -13,6 +13,7 @@ from scipy import spatial
 import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
+import pandas as pd
 
 
 
@@ -32,31 +33,61 @@ class Place(Base):
 
     def predict(db: Session, date:datetime):
         data = db.query(Place).group_by(Place.identifier).all()
-        data_x = [[x.x, x.y, x.identifier, date.month, date.day, date.hour, date.minute] for x in data]
+        data_1 = [[p.identifier,p.zone,1,1] for p in data]
+        data_2 = [[p.identifier,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] for p in data]
+        training_data = pd.DataFrame(data=data_1,
+                                        columns=["IDENTIFIER","ZONE",
+                                                 'WEEKDAY_'+str(date.weekday()), 'HOUR_'+str(date.hour)])
+        columns = ["IDENTIFIER",
+                   'WEEKDAY_0', 'WEEKDAY_1', 'WEEKDAY_2', 'WEEKDAY_3',
+                   'WEEKDAY_4', 'WEEKDAY_5', 'WEEKDAY_6', 'HOUR_0', 'HOUR_10', 'HOUR_12',
+                   'HOUR_14', 'HOUR_16', 'HOUR_18', 'HOUR_2', 'HOUR_20', 'HOUR_22',
+                   'HOUR_4', 'HOUR_6', 'HOUR_8']
+        training_data_df = pd.DataFrame(data=data_2,columns=columns)
+        training_data_df = training_data_df.merge(training_data.set_index('IDENTIFIER'), on='IDENTIFIER')
+        training_data_df = pd.concat([training_data_df, pd.get_dummies(training_data_df[['ZONE']])],
+                                     axis=1)
+        training_data_df = training_data_df.drop(['ZONE','IDENTIFIER','WEEKDAY_'+str(date.weekday())+'_x', 'HOUR_'+str(date.hour)+'_x'], axis=1)
+        cols = training_data_df.columns.tolist()
+        cols = cols[-4:] + cols[:-4]
+        training_data_df = training_data_df[cols]
+        print(training_data_df)
+        X = training_data_df.to_numpy()
         loaded_model = pickle.load(open('finalized_model.sav', 'rb'))
-        p = numpy.array(data_x)
-        res = loaded_model.predict(p)
+        res = loaded_model.predict(X)
         print(res)
         r = []
-        for i in range(len(data_x)):
-            if res[i]:
-                r.append( (data_x[i][0], data_x[i][1]))
+        for i in range(len(data)):
+            if res[i] == '1':
+                r.append( (data[i].x, data[i].y))
         print(len(r))
         return Place.toGeoJson(r)
     def train(db:Session):
-        training_data = db.query(Place).all()
-        training_data_x = [[x.x,x.y,x.identifier,x.month,x.weekday,x.hour,x.minute] for x in training_data]
-        training_data_y = [y.disp for y in training_data]
-        X = numpy.array(training_data_x)
-        y = numpy.array(training_data_y)
+        with open("training_data.csv", newline='') as f:
+            reader = csv.reader(f)
+            data = list(reader)
+
+
+        training_data_df = pd.DataFrame(data=data[1:], columns=data[0])
+        training_data_df = training_data_df.rename(
+            columns={training_data_df.columns[0]: "ZONE", training_data_df.columns[1]: "LOCALITE"})
+        training_data_df = training_data_df.drop(['LOCALITE', 'Geo Point', 'DATETIME', 'MONTH', 'MINUTE'], axis=1)
+        training_data_df = pd.concat([training_data_df, pd.get_dummies(training_data_df[['ZONE', 'WEEKDAY', 'HOUR']])],
+                                     axis=1).set_index('IDENTIFIANT')
+        training_data_df = training_data_df.drop(['ZONE', 'WEEKDAY', 'HOUR'], axis=1)
+        print(training_data_df.columns)
+
+
+        X = training_data_df.drop(['DISPONIBLE'], axis=1).to_numpy()
+        y = training_data_df['DISPONIBLE'].to_numpy()
         X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=1)
-        clf = MLPClassifier(random_state=42, max_iter=2000, hidden_layer_sizes= (88, 4)).fit(X_train, y_train)
+        clf = MLPClassifier(hidden_layer_sizes=(88, 4), random_state=42, max_iter=2000).fit(X_train, y_train)
         filename = 'finalized_model.sav'
         pickle.dump(clf, open(filename, 'wb'))
+
         return clf
-    # Get All places
     def get_all_place(db: Session):
-        return db.query(Place).all()
+        return db.query(Place).limit(10).all()
 
     # Create place
     def create_place(db: Session, idplace: int,x:float,y:float,zone:str,identifier:int,month:int,weekday:int,hour:int,minute:int,disp:bool, date:datetime):
@@ -86,7 +117,7 @@ class Place(Base):
             db.commit()
             return {"ok": True}
     def closest(db:Session,x:float,y:float):
-        l = db.query(Place).all()
+        l = db.query(Place).group_by(Place.identifier).all()
         l1 = [(place.x,place.y) for place in l]
         tree = spatial.KDTree(l1)
         return l[tree.query([(x, y)])[1][0]]
@@ -96,7 +127,7 @@ class Place(Base):
             "type": "FeatureCollection",
             "crs": {"type": "name", "properties": {"name": "parking"}},
             "features": [ { "type": "Feature", "properties": { "id": 1 },
-                            "geometry": { "type": "Point", "coordinates": [ d[0],d[1] ] } } for d in data ]}
+                            "geometry": { "type": "Point", "coordinates": [ d[1],d[0] ] } } for d in data ]}
     def available(db:Session):
         return db.query(Place, func.max(Place.date)).filter(Place.date <= datetime.datetime.now()).group_by(Place.identifier).all()
 
