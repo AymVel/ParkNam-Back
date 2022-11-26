@@ -32,12 +32,20 @@ class Place(Base):
     date = Column(DateTime)
 
     def predict(db: Session, date:datetime):
+        w = round(int(date.weekday()) / 2) * 2
+        if w == 24:
+            w = 0
+        weekday = str(w)
+        h = round(int(date.hour) / 2) * 2
+        if h == 24:
+            h = 0
+        hour = str(h)
         data = db.query(Place).group_by(Place.identifier).all()
         data_1 = [[p.identifier,p.zone,1,1] for p in data]
         data_2 = [[p.identifier,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] for p in data]
         training_data = pd.DataFrame(data=data_1,
                                         columns=["IDENTIFIER","ZONE",
-                                                 'WEEKDAY_'+str(round(int(date.weekday()) / 2) * 2), 'HOUR_'+str(round(int(date.hour) / 2) * 2)])
+                                                 'WEEKDAY_'+weekday, 'HOUR_'+hour])
         columns = ["IDENTIFIER",
                    'WEEKDAY_0', 'WEEKDAY_1', 'WEEKDAY_2', 'WEEKDAY_3',
                    'WEEKDAY_4', 'WEEKDAY_5', 'WEEKDAY_6', 'HOUR_0', 'HOUR_10', 'HOUR_12',
@@ -47,7 +55,7 @@ class Place(Base):
         training_data_df = training_data_df.merge(training_data.set_index('IDENTIFIER'), on='IDENTIFIER')
         training_data_df = pd.concat([training_data_df, pd.get_dummies(training_data_df[['ZONE']])],
                                      axis=1)
-        training_data_df = training_data_df.drop(['ZONE','IDENTIFIER','WEEKDAY_'+str(date.weekday())+'_x', 'HOUR_'+str(date.hour)+'_x'], axis=1)
+        training_data_df = training_data_df.drop(['ZONE','IDENTIFIER','WEEKDAY_'+weekday+'_x', 'HOUR_'+hour+'_x'], axis=1)
         cols = training_data_df.columns.tolist()
         cols = cols[-4:] + cols[:-4]
         training_data_df = training_data_df[cols]
@@ -59,8 +67,8 @@ class Place(Base):
         r = []
         for i in range(len(data)):
             if res[i] == '1':
+                print(data[i])
                 r.append( (data[i].x, data[i].y))
-        print(len(r))
         return Place.toGeoJson(r)
     def train(db:Session):
         with open("training_data.csv", newline='') as f:
