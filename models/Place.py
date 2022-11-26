@@ -41,10 +41,10 @@ class Place(Base):
             h = 0
         hour = str(h)
         data = db.query(Place).group_by(Place.identifier).all()
-        data_1 = [[p.identifier,p.zone,1,1] for p in data]
+        data_1 = [[p.x,p.y,p.identifier,p.zone,1,1] for p in data]
         data_2 = [[p.identifier,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] for p in data]
         training_data = pd.DataFrame(data=data_1,
-                                        columns=["IDENTIFIER","ZONE",
+                                        columns=["X","Y","IDENTIFIER","ZONE",
                                                  'WEEKDAY_'+weekday, 'HOUR_'+hour])
         columns = ["IDENTIFIER",
                    'WEEKDAY_0', 'WEEKDAY_1', 'WEEKDAY_2', 'WEEKDAY_3',
@@ -52,24 +52,47 @@ class Place(Base):
                    'HOUR_14', 'HOUR_16', 'HOUR_18', 'HOUR_2', 'HOUR_20', 'HOUR_22',
                    'HOUR_4', 'HOUR_6', 'HOUR_8']
         training_data_df = pd.DataFrame(data=data_2,columns=columns)
-        training_data_df = training_data_df.merge(training_data.set_index('IDENTIFIER'), on='IDENTIFIER')
-        training_data_df = pd.concat([training_data_df, pd.get_dummies(training_data_df[['ZONE']])],
-                                     axis=1)
-        training_data_df = training_data_df.drop(['ZONE','IDENTIFIER','WEEKDAY_'+weekday+'_x', 'HOUR_'+hour+'_x'], axis=1)
-        cols = training_data_df.columns.tolist()
-        cols = cols[-4:] + cols[:-4]
-        training_data_df = training_data_df[cols]
-        print(training_data_df)
+        res = training_data_df.merge(training_data.set_index('IDENTIFIER'), on='IDENTIFIER')
+        training_data_df = pd.concat([res, pd.get_dummies(res[['ZONE']])],axis=1)
+        training_data_df = training_data_df.drop(['X','Y','ZONE','IDENTIFIER','WEEKDAY_'+weekday+'_x', 'HOUR_'+hour+'_x'], axis=1)
+
+        training_data_df = training_data_df.rename(columns = {'WEEKDAY_'+weekday+'_y':'WEEKDAY_'+weekday,'HOUR_'+hour+'_y':'HOUR_'+hour})
+        c = [19,20,21,22,23]
+        for i in range(17):
+            if i == int(weekday):
+                c.append(17)
+            c.append(i)
+        if h == 0:
+            c.insert( 12, 18)
+        elif h == 10:
+            c.insert( 13, 18)
+        elif h == 12:
+            c.insert(14, 18)
+        elif h == 14:
+            c.insert(15, 18)
+        elif h == 16:
+            c.insert(16, 18)
+        elif h == 18:
+            c.insert(17, 18)
+        elif h == 2:
+            c.insert(18, 18)
+        elif h == 20:
+            c.insert( 19, 18)
+        elif h == 22:
+            c.insert( 20, 18)
+        elif h == 4:
+            c.insert( 21, 18)
+        elif h == 6:
+            c.insert( 22, 18)
+        training_data_df = training_data_df.iloc[:,c]
+        print(training_data_df.columns)
         X = training_data_df.to_numpy()
         loaded_model = pickle.load(open('finalized_model.sav', 'rb'))
-        res = loaded_model.predict(X)
-        print(res)
-        r = []
-        for i in range(len(data)):
-            if res[i] == '1':
-                print(data[i])
-                r.append( (data[i].x, data[i].y))
-        return Place.toGeoJson(r)
+        res['prediction'] = loaded_model.predict(X)
+        print(res[res['prediction'] == '1'])
+        l = [(place[20], place[21]) for place in res.values.tolist() if place[25]=='1']
+
+        return Place.toGeoJson(l)
     def train(db:Session):
         with open("training_data.csv", newline='') as f:
             reader = csv.reader(f)
@@ -80,7 +103,7 @@ class Place(Base):
         training_data_df = training_data_df.rename(
             columns={training_data_df.columns[0]: "ZONE", training_data_df.columns[1]: "LOCALITE"})
         training_data_df = training_data_df.drop(['LOCALITE', 'Geo Point', 'DATETIME', 'MONTH', 'MINUTE'], axis=1)
-        training_data_df = pd.concat([training_data_df, pd.get_dummies(training_data_df[['ZONE', 'WEEKDAY', 'HOUR']])],
+        training_data_df = pd.concat([training_data_df, pd.get_dummies(training_data_df[['ZONE','WEEKDAY', 'HOUR']])],
                                      axis=1).set_index('IDENTIFIANT')
         training_data_df = training_data_df.drop(['ZONE', 'WEEKDAY', 'HOUR'], axis=1)
         print(training_data_df.columns)
