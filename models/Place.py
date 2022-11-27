@@ -91,14 +91,14 @@ class Place(Base):
         res['prediction'] = loaded_model.predict(X)
         print(res[res['prediction'] == '1'])
         if duration[-1] == "n":
-            l = [(place[20], place[21]) for place in res.values.tolist() if place[25]=='1' and  place[22] == "Mauve"]
+            l = [(place[20], place[21]) for place in res.values.tolist() if place[25]=='1']
         elif duration[-1] == "h":
             if duration[0] == "3":
                 l = [(place[20], place[21]) for place in res.values.tolist() if
-                     place[25] == '1' and (place[22] == "Rouge" or place[22] == "Bleue")]
+                     place[25] == '1' and (place[22] == "Rouge" or place[22] == "Bleue" or place[22] == "Verte" or place[22] == "Orange")]
             elif duration[0] == "4":
                 l = [(place[20], place[21]) for place in res.values.tolist() if
-                     place[25] == '1' and place[22] == "Verte"]
+                     place[25] == '1' and (place[22] == "Verte" or place[22] == "Orange")]
             elif duration[0] == "8":
                 l = [(place[20], place[21]) for place in res.values.tolist() if
                      place[25] == '1' and place[22] == "Orange"]
