@@ -31,7 +31,7 @@ class Place(Base):
     disp = Column(Boolean)
     date = Column(DateTime)
 
-    def predict(db: Session, date:datetime):
+    def predict(db: Session, date:datetime,duration:str):
         w = round(int(date.weekday()) / 2) * 2
         if w == 24:
             w = 0
@@ -90,7 +90,18 @@ class Place(Base):
         loaded_model = pickle.load(open('finalized_model.sav', 'rb'))
         res['prediction'] = loaded_model.predict(X)
         print(res[res['prediction'] == '1'])
-        l = [(place[20], place[21]) for place in res.values.tolist() if place[25]=='1']
+        if duration[-1] == "n":
+            l = [(place[20], place[21]) for place in res.values.tolist() if place[25]=='1' and  place[22] == "Mauve"]
+        elif duration[-1] == "h":
+            if duration[0] == "3":
+                l = [(place[20], place[21]) for place in res.values.tolist() if
+                     place[25] == '1' and (place[22] == "Rouge" or place[22] == "Bleue")]
+            elif duration[0] == "4":
+                l = [(place[20], place[21]) for place in res.values.tolist() if
+                     place[25] == '1' and place[22] == "Verte"]
+            elif duration[0] == "8":
+                l = [(place[20], place[21]) for place in res.values.tolist() if
+                     place[25] == '1' and place[22] == "Orange"]
 
         return Place.toGeoJson(l)
     def train(db:Session):

@@ -45,9 +45,9 @@ async def generate(db: Session = Depends(get_db)):
                            minute=int(i[8]), disp=bool(int(i[9])),
                            date=datetime.datetime.strptime(i[4], '%Y-%m-%d %H:%M:%S'))
     return "ok"
-@router.get("/predict/{date}")
-async def predict(date: str, db: Session = Depends(get_db)):
-    p = Place.predict(db, datetime.datetime.strptime(date, '%Y-%m-%d_%H:%M:%S'))
+@router.get("/predict/{date}/{duration}")
+async def predict(date: str,duration:str, db: Session = Depends(get_db)):
+    p = Place.predict(db, datetime.datetime.strptime(date, '%Y-%m-%d_%H:%M:%S'),duration)
     return p
 @router.get("/train")
 async def train( db: Session = Depends(get_db)):
